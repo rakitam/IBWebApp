@@ -9,8 +9,8 @@
 	<packaging>jar</packaging>
 
 
-	<name>IB_Project_Shell</name>
-	<description>A starting point for IB project</description>
+	<name>IB_WebApp</name>
+	<description>Milica Rakita IB WebApp</description>
 
 	<parent>
 		<groupId>org.springframework.boot</groupId>
@@ -29,12 +29,12 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
-		<!--
+		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
-		-->
+		
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
