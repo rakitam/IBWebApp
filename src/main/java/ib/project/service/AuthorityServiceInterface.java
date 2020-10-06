@@ -4,5 +4,5 @@ import ib.project.model.Authority;
 
 public interface AuthorityServiceInterface {
 
-	Authority findbyName(String name);
+	Authority findByName(String name);
 }

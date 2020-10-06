@@ -1,22 +1,25 @@
-package ib.project.service;
+package ib.project.service.impl;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import ib.project.model.User;
 import ib.project.repository.UserRepository;
+import ib.project.service.UserServiceInterface;
 
 @Service
 public class UserService implements UserServiceInterface {
 
 	@Autowired
 	private UserRepository userRepository;
-
+	
 	@Override
 	public User findById(Long id) {
-		return userRepository.findOne(id);
+		User user = userRepository.getOne(id);
+		return user;
 	}
 
 	@Override
@@ -41,7 +44,6 @@ public class UserService implements UserServiceInterface {
 
 	@Override
 	public User save(User user) {
-		// TODO Auto-generated method stub
 		return userRepository.save(user);
 	}
 }
