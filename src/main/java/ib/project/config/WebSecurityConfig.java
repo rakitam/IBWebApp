@@ -75,8 +75,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 				// svim korisnicima dopusti da pristupe putanjama /api/auth/**, /h2-console/**, /api/demo/**
 				.authorizeRequests().antMatchers("/api/auth/**").permitAll().antMatchers("/api/demo/**").permitAll().antMatchers("/h2-console/**").permitAll()
 				.antMatchers("/api/users/register").permitAll()
+				//!!! SAMO ZA TESTIRANJE !!!
+				//.antMatchers(HttpMethod.GET, "/**").permitAll()
 				// samo korisnici sa ADMIN autoritijem mogu pristupiti putanji /api/users/activate/**
 				.antMatchers("/api/users/activate/**").hasAuthority("ADMIN")
+				// samo korisnici sa ADMIN autoritijem mogu pristupiti putanji /api/users/all/
+				//.antMatchers("/api/users/all").hasAuthority("ADMIN")
 				// za svaki drugi zahtev korisnik mora biti autentifikovan
 				.anyRequest().authenticated().and()
 				// umetni custom filter TokenAuthenticationFilter kako bi se vrsila provera JWT tokena umesto cistih korisnickog imena i lozinke (koje radi BasicAuthenticationFilter)

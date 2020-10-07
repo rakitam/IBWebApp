@@ -48,7 +48,7 @@ public class AuthenticationController {
 		
 		// Kreiraj token za tog korisnika
 		User user = (User)authentication.getPrincipal();
-		String jws = tokenUtils.generateToken( user.getUsername());
+		String jws = tokenUtils.generateToken(user.getUsername());
 
 		// Vrati token kao odgovor na uspesnu autentifikaciju
 		return ResponseEntity.ok(new UserTokenState(jws));
