@@ -25,7 +25,7 @@ function getAllUsers(token){
 			type: 'GET',
 			dataType:'json',
 			crossDomain: true,
-			url:'https://localhost:8443/api/users',
+			url:'https://localhost:8443/api/users/all',
 			success:function(response){
 				
 				var table = $('#users tbody');
@@ -59,7 +59,7 @@ function getAllUsers(token){
 
 function activateUser(id){
 	$.ajax({
-		type: 'POST',
+		type: 'PUT',
 		contentType: 'application/json',
 		headers:{"Authorization" :"Bearer " + token},
 		url: 'https://localhost:8443/api/users/activate/' + id,
@@ -68,6 +68,7 @@ function activateUser(id){
 		cache: false,
 		processData: false,
 		success:function(response){
+			alert("User activated successfully.");
 			location.reload();
 		},
 		error: function (jqXHR, textStatus, errorThrown) {
