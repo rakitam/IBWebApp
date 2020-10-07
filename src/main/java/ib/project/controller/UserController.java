@@ -1,5 +1,7 @@
 package ib.project.controller;
 
+import java.io.File;
+import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -13,7 +15,9 @@ import java.util.List;
 
 import org.bouncycastle.cert.X509CRLHolder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +28,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import ib.project.certificate.model.IssuerData;
@@ -37,6 +42,7 @@ import ib.project.model.Authority;
 import ib.project.model.User;
 import ib.project.service.AuthorityServiceInterface;
 import ib.project.service.UserServiceInterface;
+import ib.project.service.impl.KeyStoreService;
 
 @RestController
 @RequestMapping(value = "api/users")
@@ -52,8 +58,11 @@ public class UserController {
 	@Autowired
 	PasswordEncoder passwordEncoder;
 
+	@Autowired
+	KeyStoreService keyStoreService;
+
 	@GetMapping("/all")
-	// @PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasRole('ADMIN')")
 	public List<User> getAll() {
 		return this.userService.findAll();
 	}
@@ -81,7 +90,7 @@ public class UserController {
 	// User registration
 	@PostMapping(value = "/register", consumes = "application/json")
 	public ResponseEntity<UserDTO> register(@RequestBody UserDTO userDTO) {
-		Authority authority = authorityService.findByName("REGULAR");
+		Authority authority = authorityService.findByName("ROLE_REGULAR");
 		User u = userService.findByEmail(userDTO.getEmail());
 		if (u != null) {
 			return new ResponseEntity<>(HttpStatus.FORBIDDEN);
@@ -99,10 +108,10 @@ public class UserController {
 
 		// Kreiranje korisničkog direktorijuma
 		String id = Long.toString(u.getId());
-		createDirectory(id);
+		keyStoreService.createDirectory(id);
 
 		// Kreiranje KeyStore-a za korisnika
-		if (generateKeyStore(u)) {
+		if (keyStoreService.generateKeyStore(u)) {
 			u.setCertificate("data/" + id + "/keystore.jks");
 		}
 
@@ -111,7 +120,7 @@ public class UserController {
 
 	// User activation
 	@PutMapping(value = "/activate/{id}")
-	// @PreAuthorize("hasRole('ADMIN')")
+	@PreAuthorize("hasRole('ADMIN')")
 	public ResponseEntity<UserDTO> activateUser(@PathVariable("id") Long id) {
 		User user = userService.findById(id);
 		if (user == null) {
@@ -123,70 +132,30 @@ public class UserController {
 	}
 
 	@RequestMapping("/whoami")
-	public User user(Principal user) {
-		return this.userService.findByEmail(user.getName());
+	public UserDTO user(Principal user) {
+		return new UserDTO(this.userService.findByEmail(user.getName()));
 	}
 
-	/*
-	 * TODO://Premestiti kod koji se nalazi ispod u zasebnu klasu nakon testiranja
-	 */
-	
-	// Kreiranje self-signed sertifikata i kreiranje keystore-a u korisnički
-	// direktorijum
-	private boolean generateKeyStore(User user) {
-		CertificateGenerator cg = new CertificateGenerator();
+	@GetMapping(value = "/whoami/download")
+	public ResponseEntity<byte[]> download(Principal user) {
+		User u = this.userService.findByEmail(user.getName());
+		ClassLoader classloader = Thread.currentThread().getContextClassLoader();
+		Path userDir = Paths.get("data/" + u.getId() +"/keystore.jks");
 
+		File file = null;
 		try {
-			SimpleDateFormat iso8601Formater = new SimpleDateFormat("yyyy-MM-dd");
-			Date startDate = iso8601Formater.parse("2019-01-01");
-			Date endDate = iso8601Formater.parse("2024-01-01");
-			KeyPair keyPairCA = cg.generateKeyPair();
-
-			IssuerData issuerData = new IssuerData("FTN", "Fakultet tehnickih nauka", "Katedra za informatiku", "RS",
-					"ftnmail@uns.ac.rs", "123445", keyPairCA.getPrivate());
-			SubjectData subjectData1 = new SubjectData(keyPairCA.getPublic(), issuerData.getX500name(), "1", startDate,
-					endDate);
-
-			X509Certificate certCA = cg.generateCertificate(issuerData, subjectData1);
-			X509CRLHolder crlHolder = CRLManager.createCRL(certCA, keyPairCA.getPrivate());
-
-			// Kreiranje sertifikata potpisanog od strane CA
-			startDate = iso8601Formater.parse("2020-10-7");
-			endDate = iso8601Formater.parse("2021-10-7");
-
-			KeyPair keyPair2 = cg.generateKeyPair();
-
-			String email = user.getEmail();
-			char[] password = email.toCharArray();
-			String id = Long.toString(user.getId());
-
-			SubjectData subjectData2 = new SubjectData(keyPair2.getPublic(), "FTN", email, "Katedra za informatiku",
-					"RS", email, "12345", "1", startDate, endDate);
-			X509Certificate cert = cg.generateCertificate(issuerData, subjectData2);
-
-			// kreiranje i čuvanje keystore-a
-			KeyStoreWriter keyStoreWriter = new KeyStoreWriter();
-			keyStoreWriter.loadKeyStore(null, password);
-			keyStoreWriter.write(email, keyPair2.getPrivate(), password, cert);
-			keyStoreWriter.saveKeyStore("data/" + id + "/keystore.jks", password);
-
-			return true;
-
+			file = new File(userDir.toUri().toURL().getFile());
 		} catch (Exception e) {
-			e.printStackTrace();
-			return false;
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 		}
+
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		headers.add("filename", "keystore.jks");
+
+		byte[] bFile = keyStoreService.readBytesFromFile(file.toString());
+
+		return ResponseEntity.ok().headers(headers).body(bFile);
 	}
 
-	// Kreiranje korisnickog direktorijuma
-	private void createDirectory(String id) {
-
-		Path userDir = Paths.get("data/" + id);
-
-		try {
-			Files.createDirectory(userDir);
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
-	}
 }
